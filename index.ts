@@ -10,6 +10,7 @@ import {
   concatMap,
   mergeMap,
   take,
+  tap,
 } from 'rxjs';
 
 // of('World')
@@ -27,7 +28,8 @@ import {
 // coldObservableConcatMapHotObservable_Fix1();
 // coldObservableConcatMapColdObservable();
 // coldObservableMergeMapColdObservable();
-coldObservableSwitchMapColdObservable();
+// coldObservableSwitchMapColdObservable();
+coldObservableSwitchMapAsyncColdObservable();
 
 function howColdObservableWorks() {
   const data$ = new Observable((subscriber) => {
@@ -237,12 +239,47 @@ function coldObservableSwitchMapColdObservable() {
   const people$ = new Observable<string>((subscriber) => {
     subscriber.next('Iron Man');
     subscriber.next('Captain America');
+    subscriber.complete();
   });
 
   data$
     .pipe(switchMap((it) => people$.pipe(map((person) => `${it}:${person}`))))
     .subscribe((person) => {
       console.log(`coldObservableSwitchMapColdObservable: ${person}`);
+    });
+}
+
+function coldObservableSwitchMapAsyncColdObservable() {
+  const data$ = new Observable((subscriber) => {
+    subscriber.next(1);
+    subscriber.next(2);
+    subscriber.next(3);
+    subscriber.complete();
+  });
+
+  const people$ = new Observable<string>((subscriber) => {
+    setTimeout(() => {
+      subscriber.next('Iron Man');
+      // subscriber.next('Captain America');
+    }, 500);
+
+    setTimeout(() => {
+      // subscriber.next('Iron Man');
+      subscriber.next('Captain America');
+    }, 600);
+
+    setTimeout(() => {
+      subscriber.complete();
+    }, 700);
+  });
+
+  data$
+    .pipe(
+      tap((it) => console.log(it)),
+      switchMap((it) => people$.pipe(map((person) => `${it}:${person}`)))
+    )
+    .subscribe((person) => {
+      console.log(`coldObservableSwitchMapAsyncColdObservable: ${person}`);
     });
 }
 
