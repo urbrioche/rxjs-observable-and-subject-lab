@@ -15,6 +15,7 @@ import {
   first,
   forkJoin,
   takeUntil,
+  combineLatest,
 } from 'rxjs';
 import { last } from 'rxjs/operators';
 
@@ -39,7 +40,8 @@ import { last } from 'rxjs/operators';
 // forkJoinHotObservables_never_emit_value();
 // forkJoinHotObservables_never_emit_value_fix1();
 // forkJoinHotObservables_never_emit_value_fix2();
-forkJoinHotObservables_never_emit_value_fix3();
+// forkJoinHotObservables_never_emit_value_fix3();
+combineLatestColdObservables();
 
 function howColdObservableWorks() {
   const data$ = new Observable((subscriber) => {
@@ -400,6 +402,30 @@ function forkJoinHotObservables_never_emit_value_fix3() {
   data2$.next('C');
   notifier$.next();
 }
+
+function combineLatestColdObservables() {
+  const data1$ = new Observable((subscriber) => {
+    subscriber.next(1);
+    subscriber.next(2);
+    subscriber.next(3);
+    subscriber.complete();
+  });
+
+  const data2$ = new Observable((subscriber) => {
+    subscriber.next('A');
+    subscriber.next('B');
+    subscriber.complete();
+  });
+
+  // 這個結果和你想的有一樣嗎
+  // 研究一下 https://github.com/ReactiveX/rxjs/blob/master/src/internal/observable/combineLatest.ts 你會發現為什麼會這樣跑
+  // 註解也可以進一步研讀，會有收穫的
+  combineLatest([data1$, data2$]).subscribe({
+    next: (data) => console.log(data),
+    complete: () => console.log('complete'),
+  });
+}
+
 // const data$ = new Observable((subscriber) => {
 //   subscriber.next('A');
 //   subscriber.next('B');
