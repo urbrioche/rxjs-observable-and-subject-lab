@@ -14,7 +14,9 @@ import {
   share,
   first,
   forkJoin,
+  takeUntil,
 } from 'rxjs';
+import { last } from 'rxjs/operators';
 
 // of('World')
 //   .pipe(map((name) => `Hello, ${name}!`))
@@ -33,7 +35,11 @@ import {
 // coldObservableMergeMapColdObservable();
 // coldObservableSwitchMapColdObservable();
 // coldObservableSwitchMapAsyncColdObservable();
-forkJoinColdObservables();
+// forkJoinColdObservables();
+// forkJoinHotObservables_never_emit_value();
+// forkJoinHotObservables_never_emit_value_fix1();
+// forkJoinHotObservables_never_emit_value_fix2();
+forkJoinHotObservables_never_emit_value_fix3();
 
 function howColdObservableWorks() {
   const data$ = new Observable((subscriber) => {
@@ -305,6 +311,94 @@ function forkJoinColdObservables() {
     next: (data) => console.log(data),
     complete: () => console.log('complete'),
   });
+}
+
+function forkJoinHotObservables_never_emit_value() {
+  const data1$ = new Subject<number>();
+
+  const data2$ = new Subject<string>();
+
+  forkJoin([data1$, data2$]).subscribe({
+    next: (data) => console.log(data),
+    complete: () => console.log('complete'),
+  });
+
+  data1$.next(1);
+  data1$.next(2);
+
+  data2$.next('A');
+  data2$.next('B');
+}
+
+function forkJoinHotObservables_never_emit_value_fix1() {
+  const data1$ = new Subject<number>();
+
+  const data2$ = new Subject<string>();
+
+  forkJoin([data1$, data2$]).subscribe({
+    next: (data) => console.log(data),
+    complete: () => console.log('complete'),
+  });
+
+  data1$.next(1);
+  data1$.next(2);
+  data1$.complete();
+
+  data2$.next('A');
+  data2$.next('B');
+  data2$.complete();
+}
+
+function forkJoinHotObservables_never_emit_value_fix2() {
+  const data1$ = new Subject<number>();
+
+  const data2$ = new Subject<string>();
+
+  // 思考: 用take(n)是否適合
+  forkJoin([data1$.pipe(take(1)), data2$.pipe(take(1))]).subscribe({
+    next: (data) => console.log(data),
+    complete: () => console.log('complete'),
+  });
+
+  data1$.next(1);
+  data1$.next(2);
+  // data1$.complete();
+
+  data2$.next('A');
+  data2$.next('B');
+  // data2$.complete();
+}
+
+function forkJoinHotObservables_never_emit_value_fix3() {
+  const data1$ = new Subject<number>();
+
+  const data2$ = new Subject<string>();
+
+  const notifier$ = new Subject<void>();
+
+  const subscription = forkJoin([
+    data1$.pipe(takeUntil(notifier$)),
+    data2$.pipe(takeUntil(notifier$)),
+  ]).subscribe({
+    next: (data) => console.log(data),
+    complete: () => console.log('complete'),
+  });
+
+  console.log('看看close了沒: ', subscription.closed);
+
+  data1$.next(1);
+  data1$.next(2);
+
+  data2$.next('A');
+  data2$.next('B');
+  notifier$.next();
+
+  console.log('看看close了沒: ', subscription.closed);
+
+  // 上面已經完成，下面不會觸發任何事件流
+  data1$.next(3);
+  data2$.next('C');
+  notifier$.next();
 }
 // const data$ = new Observable((subscriber) => {
 //   subscriber.next('A');
