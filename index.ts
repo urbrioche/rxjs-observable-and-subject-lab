@@ -16,6 +16,7 @@ import {
   forkJoin,
   takeUntil,
   combineLatest,
+  startWith,
 } from 'rxjs';
 import { last } from 'rxjs/operators';
 
@@ -41,7 +42,11 @@ import { last } from 'rxjs/operators';
 // forkJoinHotObservables_never_emit_value_fix1();
 // forkJoinHotObservables_never_emit_value_fix2();
 // forkJoinHotObservables_never_emit_value_fix3();
-combineLatestColdObservables();
+// combineLatestColdObservables();
+synchronizationStream();
+synchronizationStream_hot_observables();
+synchronizationStream_hot_observables_startWith();
+synchronizationStream_hot_observables_startWith_and_also_emit_later();
 
 function howColdObservableWorks() {
   const data$ = new Observable((subscriber) => {
@@ -426,6 +431,72 @@ function combineLatestColdObservables() {
   });
 }
 
+function synchronizationStream() {
+  // 為了了解combineLatestColdObservables()為什麼那樣跑，增加這個範例
+  // 其實就是同步資料流的關係
+  // 不要將rxjs都視為非同步資料流，要看情境而定
+  const data1$ = new Observable((subscriber) => {
+    subscriber.next(1);
+    subscriber.next(2);
+    subscriber.next(3);
+    subscriber.complete();
+  });
+
+  const data2$ = new Observable((subscriber) => {
+    subscriber.next('A');
+    subscriber.next('B');
+    subscriber.complete();
+  });
+
+  data1$.subscribe((data) => console.log(data));
+  // 上面跑完才跑 -----
+  console.log('-----');
+  // 然後才跑下面
+  data2$.subscribe((data) => console.log(data));
+}
+
+function synchronizationStream_hot_observables() {
+  // 為了了解combineLatestColdObservables()為什麼那樣跑，增加這個範例
+  // 其實就是同步資料流的關係
+  // 不要將rxjs都視為非同步資料流，要看情境而定
+  const data1$ = new Subject<number>();
+  const data2$ = new Subject<string>();
+  data1$.subscribe((data) => console.log(data));
+  // 上面跑完才跑 *********
+  console.log('*********');
+  // 然後才跑下面
+  data2$.subscribe((data) => console.log(data));
+  // 但沒有emit事件，所以，console只會有*********
+}
+
+function synchronizationStream_hot_observables_startWith() {
+  // 為了了解combineLatestColdObservables()為什麼那樣跑，增加這個範例
+  // 其實就是同步資料流的關係
+  // 不要將rxjs都視為非同步資料流，要看情境而定
+  const data1$ = new Subject<number>();
+  const data2$ = new Subject<string>();
+  data1$.pipe(startWith(100)).subscribe((data) => console.log(data));
+  // 上面跑完才跑 ++++++++
+  console.log('++++++++');
+  // 然後才跑下面
+  data2$.pipe(startWith('ZZ')).subscribe((data) => console.log(data));
+}
+
+function synchronizationStream_hot_observables_startWith_and_also_emit_later() {
+  // 為了了解combineLatestColdObservables()為什麼那樣跑，增加這個範例
+  // 其實就是同步資料流的關係
+  // 不要將rxjs都視為非同步資料流，要看情境而定
+  const data1$ = new Subject<number>();
+  const data2$ = new Subject<string>();
+  data1$.pipe(startWith(101)).subscribe((data) => console.log(data));
+  // 上面跑完才跑 ########
+  console.log('########');
+  // 然後才跑下面
+  data2$.pipe(startWith('XXY')).subscribe((data) => console.log(data));
+
+  data1$.next(102);
+  data2$.next('XXZ');
+}
 // const data$ = new Observable((subscriber) => {
 //   subscriber.next('A');
 //   subscriber.next('B');
