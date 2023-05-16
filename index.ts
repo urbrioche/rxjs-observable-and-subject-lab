@@ -11,6 +11,9 @@ import {
   mergeMap,
   take,
   tap,
+  share,
+  first,
+  forkJoin,
 } from 'rxjs';
 
 // of('World')
@@ -29,7 +32,8 @@ import {
 // coldObservableConcatMapColdObservable();
 // coldObservableMergeMapColdObservable();
 // coldObservableSwitchMapColdObservable();
-coldObservableSwitchMapAsyncColdObservable();
+// coldObservableSwitchMapAsyncColdObservable();
+forkJoinColdObservables();
 
 function howColdObservableWorks() {
   const data$ = new Observable((subscriber) => {
@@ -283,6 +287,25 @@ function coldObservableSwitchMapAsyncColdObservable() {
     });
 }
 
+function forkJoinColdObservables() {
+  const data1$ = new Observable((subscriber) => {
+    subscriber.next(1);
+    subscriber.next(2);
+    subscriber.next(3);
+    subscriber.complete();
+  });
+
+  const data2$ = new Observable((subscriber) => {
+    subscriber.next('A');
+    subscriber.next('B');
+    subscriber.complete();
+  });
+
+  forkJoin([data1$, data2$]).subscribe({
+    next: (data) => console.log(data),
+    complete: () => console.log('complete'),
+  });
+}
 // const data$ = new Observable((subscriber) => {
 //   subscriber.next('A');
 //   subscriber.next('B');
