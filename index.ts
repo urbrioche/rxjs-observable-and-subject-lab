@@ -17,8 +17,10 @@ import {
   takeUntil,
   combineLatest,
   startWith,
+  Subscriber,
+  ReplaySubject,
 } from 'rxjs';
-import { last } from 'rxjs/operators';
+import { last, shareReplay } from 'rxjs/operators';
 
 // of('World')
 //   .pipe(map((name) => `Hello, ${name}!`))
@@ -43,10 +45,12 @@ import { last } from 'rxjs/operators';
 // forkJoinHotObservables_never_emit_value_fix2();
 // forkJoinHotObservables_never_emit_value_fix3();
 // combineLatestColdObservables();
-synchronizationStream();
-synchronizationStream_hot_observables();
-synchronizationStream_hot_observables_startWith();
-synchronizationStream_hot_observables_startWith_and_also_emit_later();
+// synchronizationStream();
+// synchronizationStream_hot_observables();
+// synchronizationStream_hot_observables_startWith();
+// synchronizationStream_hot_observables_startWith_and_also_emit_later();
+// useShareToMultiCastColdObserable_not_working();
+useShareToMultiCastColdObserable_not_working_fix();
 
 function howColdObservableWorks() {
   const data$ = new Observable((subscriber) => {
@@ -496,6 +500,90 @@ function synchronizationStream_hot_observables_startWith_and_also_emit_later() {
 
   data1$.next(102);
   data2$.next('XXZ');
+}
+
+function useShareToMultiCastColdObserable_not_working() {
+  let sub: Subscriber<unknown>;
+  const data1$ = new Observable((subscriber) => {
+    console.log('start');
+    setTimeout(() => {}, 500);
+    sub = subscriber;
+    subscriber.next(1);
+    subscriber.next(2);
+    subscriber.next(3);
+    subscriber.next(4);
+    subscriber.next(5);
+    subscriber.complete();
+    console.log('end');
+  });
+
+  //https://www.bitovi.com/blog/always-know-when-to-use-share-vs.-sharereplay
+  // cold observable 不如預期，似乎要用shareReplay
+  const dataShare$ = data1$.pipe(share());
+  // 預期結果 data$內的subscriber只會進入一次，所以，理論上start...end 只會出現一次
+  // 但是，結果卻是出現兩次
+
+  // 下面的程式是同步行為
+  // 先跑這
+  dataShare$.subscribe({
+    next: (data) => console.log(data),
+    complete: () => console.log('complete'),
+  });
+
+  // 再跑這
+  console.log('**********');
+
+  // 最後跑這
+  dataShare$.subscribe({
+    next: (data) => console.log(data),
+    complete: () => console.log('complete'),
+  });
+
+  // https://github.com/ReactiveX/rxjs/blob/3d69bbc1e95957e65c22984f4e795ff4ca9e4628/src/internal/operators/share.ts#L203
+  // 看一下這段原始嗎，就不難理解為什麼會不如預期了
+}
+
+function useShareToMultiCastColdObserable_not_working_fix() {
+  let sub: Subscriber<unknown>;
+  const data1$ = new Observable((subscriber) => {
+    console.log('start');
+    setTimeout(() => {}, 500);
+    sub = subscriber;
+    subscriber.next(1);
+    subscriber.next(2);
+    subscriber.next(3);
+    subscriber.next(4);
+    subscriber.next(5);
+    subscriber.complete();
+    console.log('end');
+  });
+
+  //https://www.bitovi.com/blog/always-know-when-to-use-share-vs.-sharereplay
+  // cold observable 不如預期，似乎要用shareReplay
+  const dataShare$ = data1$.pipe(
+    share({ resetOnComplete: false, connector: () => new ReplaySubject() })
+  );
+  // 預期結果 data$內的subscriber只會進入一次，所以，start...end 只會出現一次
+
+  // 下面的程式是同步行為
+  // 先跑這，跑完資料流會complete，藉由resetOnComplete:false 來解決
+  dataShare$.subscribe({
+    next: (data) => console.log(data),
+    complete: () => console.log('complete'),
+  });
+
+  // 再跑這
+  console.log('**********');
+
+  // 最後跑這
+  // 將connector改為 replaySubject 解決這段內部的subject的訂閱，是在emit事件後 (很抽象，多看原始嗎才能理解)
+  dataShare$.subscribe({
+    next: (data) => console.log(data),
+    complete: () => console.log('complete'),
+  });
+
+  // https://github.com/ReactiveX/rxjs/blob/3d69bbc1e95957e65c22984f4e795ff4ca9e4628/src/internal/operators/share.ts#L203
+  // 看一下這段原始嗎，就不難理解為什麼會不如預期了
 }
 // const data$ = new Observable((subscriber) => {
 //   subscriber.next('A');
