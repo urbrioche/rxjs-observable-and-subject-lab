@@ -50,7 +50,8 @@ import { last, shareReplay } from 'rxjs/operators';
 // synchronizationStream_hot_observables_startWith();
 // synchronizationStream_hot_observables_startWith_and_also_emit_later();
 // useShareToMultiCastColdObserable_not_working();
-useShareToMultiCastColdObserable_not_working_fix();
+// useShareToMultiCastColdObserable_not_working_fix();
+useShareToMultiCastHotObservable();
 
 function howColdObservableWorks() {
   const data$ = new Observable((subscriber) => {
@@ -584,6 +585,37 @@ function useShareToMultiCastColdObserable_not_working_fix() {
 
   // https://github.com/ReactiveX/rxjs/blob/3d69bbc1e95957e65c22984f4e795ff4ca9e4628/src/internal/operators/share.ts#L203
   // 看一下這段原始嗎，就不難理解為什麼會不如預期了
+}
+
+function useShareToMultiCastHotObservable() {
+  const data$ = new Subject<number>();
+
+  const dataShare$ = data$.pipe(
+    tap(() => console.log('should only enter once when each value emit')),
+    share()
+  );
+
+  dataShare$.subscribe({
+    next: (value) => {
+      console.log(value);
+    },
+    complete: () => {
+      console.log('complete');
+    },
+  });
+
+  dataShare$.subscribe({
+    next: (value) => {
+      console.log(value);
+    },
+    complete: () => {
+      console.log('complete');
+    },
+  });
+
+  data$.next(1);
+  data$.next(2);
+
 }
 // const data$ = new Observable((subscriber) => {
 //   subscriber.next('A');
