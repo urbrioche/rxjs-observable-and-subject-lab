@@ -51,7 +51,9 @@ import { last, shareReplay } from 'rxjs/operators';
 // synchronizationStream_hot_observables_startWith_and_also_emit_later();
 // useShareToMultiCastColdObserable_not_working();
 // useShareToMultiCastColdObserable_not_working_fix();
-useShareToMultiCastHotObservable();
+// useShareToMultiCastHotObservable();
+// share_work_on_late_subscribe_scenario();
+share_not_work_on_late_subscribe_scenario();
 
 function howColdObservableWorks() {
   const data$ = new Observable((subscriber) => {
@@ -615,64 +617,82 @@ function useShareToMultiCastHotObservable() {
 
   data$.next(1);
   data$.next(2);
-
 }
-// const data$ = new Observable((subscriber) => {
-//   subscriber.next('A');
-//   subscriber.next('B');
-//   subscriber.next('C');
-//   subscriber.next('D');
-//   subscriber.complete();
-// });
 
-// data$.subscribe((it) => {
-//   console.log(it);
-// });
+function share_work_on_late_subscribe_scenario() {
+  // 模擬http請求
+  const getData = (): Observable<string[]> => {
+    return new Observable<string[]>((subscriber) => {
+      console.log('getData...');
+      // 5秒後資料回來
+      setTimeout(() => {
+        subscriber.next(['John', 'Hulk']);
+        subscriber.complete();
+      }, 5000);
+    });
+  };
 
-// const dataSubject$ = new Subject<string>();
+  const dataShare$ = getData().pipe(share());
+  dataShare$.subscribe({
+    next: (data) => console.log(data),
+    complete: () => console.log('complete'),
+  });
 
-// const dummy$ = from([null]);
+  console.log('**********');
 
-// const dummySubject$ = new Subject();
+  dataShare$.subscribe({
+    next: (data) => console.log(data),
+    complete: () => console.log('complete'),
+  });
 
-// dummy$.pipe(switchMap(() => data$)).subscribe((it) => {
-//   console.log('"' + it + '"');
-// });
+  // late subscribe after 4 seconds, but api call take 5 seconds
+  // 主要是網路上有一些文章用setTimeout來解說late subscribe不會share()
+  // 但，其實要看是“多晚”訂閱
+  // 像這種情形是有share的
+  // getData...只出現一次
+  setTimeout(() => {
+    dataShare$.subscribe({
+      next: (data) => console.log(data),
+      complete: () => console.log('complete'),
+    });
+  }, 4000);
+}
 
-// dataSubject$.next('S1');
+function share_not_work_on_late_subscribe_scenario() {
+  // 模擬http請求
+  const getData = (): Observable<string[]> => {
+    return new Observable<string[]>((subscriber) => {
+      console.log('getData...');
+      // 5秒後資料回來
+      setTimeout(() => {
+        subscriber.next(['John', 'Hulk']);
+        subscriber.complete();
+      }, 5000);
+    });
+  };
 
-// dummy$.pipe(switchMap(() => dataSubject$)).subscribe((it) => {
-//   console.log('"' + it + '"');
-// });
+  const dataShare$ = getData().pipe(share());
+  dataShare$.subscribe({
+    next: (data) => console.log(data),
+    complete: () => console.log('complete'),
+  });
 
-// dataSubject$.next('S2');
+  console.log('**********');
 
-// dummySubject$.next('DS1');
+  dataShare$.subscribe({
+    next: (data) => console.log(data),
+    complete: () => console.log('complete'),
+  });
 
-// // dummySubject$.pipe(switchMap(() => data$)).subscribe((it) => {
-// //   console.log('*' + it + '*');
-// // });
-
-// dummySubject$
-//   .pipe(
-//     //mergeMap((it) =>
-//     switchMap((it) =>
-//       //concatMap((it) =>
-//       dataSubject$.pipe(
-//         map((data) => it + ':' + data + ':' + it)
-//         //take(2)
-//       )
-//     )
-//   )
-//   .subscribe((it) => {
-//     console.log('*' + it + '*');
-//   });
-// //dummySubject$.next('DS2');
-// dataSubject$.next('S3');
-// dummySubject$.next('DS2');
-// dataSubject$.next('S4');
-// dataSubject$.next('S5');
-// dummySubject$.next('DS3');
-// dataSubject$.next('S6');
-// dataSubject$.next('S7');
-// dataSubject$.next('S8');
+  // late subscribe after 6 seconds, but api call take 5 seconds
+  // 主要是網路上有一些文章用setTimeout來解說late subscribe不會share()
+  // 但，其實要看是“多晚”訂閱
+  // 像這種情形是不會share的
+  // getData...只會出現兩次
+  setTimeout(() => {
+    dataShare$.subscribe({
+      next: (data) => console.log(data),
+      complete: () => console.log('complete'),
+    });
+  }, 6000);
+}
