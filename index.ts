@@ -19,6 +19,10 @@ import {
   startWith,
   Subscriber,
   ReplaySubject,
+  merge,
+  asyncScheduler,
+  scheduled,
+  asapScheduler,
 } from 'rxjs';
 import { last, shareReplay } from 'rxjs/operators';
 
@@ -53,7 +57,10 @@ import { last, shareReplay } from 'rxjs/operators';
 // useShareToMultiCastColdObserable_not_working_fix();
 // useShareToMultiCastHotObservable();
 // share_work_on_late_subscribe_scenario();
-share_not_work_on_late_subscribe_scenario();
+// share_not_work_on_late_subscribe_scenario();
+// ergeTwoColdObservables();
+// mergeTwoColdObservablesWithScheduler();
+mergeTwoHotObservables();
 
 function howColdObservableWorks() {
   const data$ = new Observable((subscriber) => {
@@ -695,4 +702,52 @@ function share_not_work_on_late_subscribe_scenario() {
       complete: () => console.log('complete'),
     });
   }, 6000);
+}
+
+function mergeTwoColdObservables() {
+  const data1$ = from(['A', 'B', 'C']);
+  const data2$ = from(['X', 'Y', 'Z']);
+  merge(data1$, data2$).subscribe({
+    next: (value) => console.log(value),
+    complete: () => console.log('complete'),
+  });
+}
+
+function mergeTwoColdObservablesWithScheduler() {
+  const data1$ = scheduled(['A', 'B', 'C'], asapScheduler);
+  const data2$ = scheduled(['X', 'Y', 'Z'], asapScheduler);
+  data1$.subscribe({
+    next: (value) => console.log('data1:', value),
+    complete: () => console.log('data1 complete'),
+  });
+
+  data2$.subscribe({
+    next: (value) => console.log('data2:', value),
+    complete: () => console.log('data2 complete'),
+  });
+
+  merge(data1$, data2$).subscribe({
+    next: (value) => console.log(value),
+    complete: () => console.log('merge complete'),
+  });
+}
+
+function mergeTwoHotObservables() {
+  const data1$ = new Subject<string>();
+  const data2$ = new Subject<string>();
+  const emit1 = () => {
+    ['X', 'Y', 'Z'].forEach((it) => data2$.next(it));
+  };
+
+  const emit2 = () => {
+    ['X', 'Y', 'Z'].forEach((it) => data2$.next(it));
+  };
+
+  merge(data1$, data2$).subscribe({
+    next: (value) => console.log(value),
+    complete: () => console.log('complete'),
+  });
+
+  emit1();
+  emit2();
 }
